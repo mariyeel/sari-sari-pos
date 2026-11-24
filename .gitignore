@@ -1,0 +1,5 @@
+/config.local.php
+/backups/
+/.env*
+*.sql
+!/database/schema.sql
