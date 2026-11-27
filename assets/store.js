@@ -46,6 +46,28 @@ document.querySelectorAll('form[data-confirm]').forEach(form => {
     });
 });
 
+const productList = document.querySelector('[data-product-list]');
+const productSearch = productList?.querySelector('[data-product-search]');
+if (productSearch) {
+    const rows = productList.querySelectorAll('[data-product-name]');
+    const noMatches = productList.querySelector('[data-product-search-empty]');
+
+    const filterProducts = () => {
+        const term = productSearch.value.trim().toLocaleLowerCase();
+        let hasMatch = false;
+        for (const row of rows) {
+            const { productName, productSku } = row.dataset;
+            const matches = [productName, productSku].some(value => value.toLocaleLowerCase().includes(term));
+            row.hidden = !matches;
+            hasMatch ||= matches;
+        }
+        noMatches.hidden = hasMatch;
+    };
+
+    productSearch.addEventListener('input', filterProducts);
+    filterProducts();
+}
+
 const stockForm = document.querySelector('[data-stock-form]');
 if (stockForm) {
     const reason = stockForm.elements.reason;

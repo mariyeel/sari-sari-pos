@@ -6,11 +6,15 @@ $category = !empty($_GET['category']) ? query($db, "SELECT * FROM categories WHE
 ?>
 <section class="page-heading"><div><p class="eyebrow">CATALOG</p><h1>Products &amp; categories</h1><p>Set your tingi selling units, prices, and stock alerts.</p></div><a href="?page=inventory" class="btn btn-light"><?= icon('layers') ?> Inventory</a></section>
 <div class="management-grid">
-    <section class="panel table-panel">
+    <section class="panel table-panel" data-product-list>
         <div class="panel-head"><div><h2>Products</h2><p><?= e(count($products)) ?> in the catalog</p></div><?php if ($product) { ?><a class="btn btn-light btn-sm" href="?page=products#product-form">Add product</a><?php } ?></div>
         <?php if ($products) { ?>
+        <div class="panel-body">
+            <label class="search-field"><?= icon('search') ?><input type="search" class="form-control" placeholder="Search product or SKU" aria-label="Search product or SKU" data-product-search></label>
+        </div>
         <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Product</th><th>Category</th><th>Selling price</th><th>Unit cost</th><th>Status</th><th><span class="visually-hidden">Edit</span></th></tr></thead><tbody>
-        <?php foreach ($products as $item) { ?><tr><td class="fw-semibold"><?= e($item['name']) ?><small class="d-block text-secondary"><?= e($item['sku']) ?> · <?= e($item['unit']) ?></small></td><td><?= e($item['category']) ?></td><td><?= e(money($item['price_cents'])) ?></td><td><?= e(money($item['cost_cents'])) ?></td><td><span class="method <?= $item['active'] ? 'method-cash' : 'method-utang' ?>"><?= $item['active'] ? 'Active' : 'Archived' ?></span></td><td class="text-end"><a class="btn btn-light btn-sm" href="?page=products&amp;edit=<?= e($item['id']) ?>#product-form">Edit</a></td></tr><?php } ?>
+        <?php foreach ($products as $item) { ?><tr data-product-name="<?= e($item['name']) ?>" data-product-sku="<?= e($item['sku']) ?>"><td class="fw-semibold"><?= e($item['name']) ?><small class="d-block text-secondary"><?= e($item['sku']) ?> · <?= e($item['unit']) ?></small></td><td><?= e($item['category']) ?></td><td><?= e(money($item['price_cents'])) ?></td><td><?= e(money($item['cost_cents'])) ?></td><td><span class="method <?= $item['active'] ? 'method-cash' : 'method-utang' ?>"><?= $item['active'] ? 'Active' : 'Archived' ?></span></td><td class="text-end"><a class="btn btn-light btn-sm" href="?page=products&amp;edit=<?= e($item['id']) ?>#product-form">Edit</a></td></tr><?php } ?>
+        <tr hidden data-product-search-empty><td colspan="6" class="text-center text-secondary">No products match your search.</td></tr>
         </tbody></table></div>
         <?php } else { emptyState('No products yet', 'Add a category, then create your first product.', 'box-seam'); } ?>
     </section>
