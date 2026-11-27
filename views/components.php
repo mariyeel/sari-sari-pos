@@ -28,6 +28,21 @@ function emptyState(string $title, string $body = '', string $symbol = 'inbox'):
     </div>
 <?php }
 
+function barcodeScanner(): void
+{ ?>
+    <dialog class="panel barcode-scanner" id="barcode-scanner" aria-labelledby="barcode-scanner-title" data-barcode-scanner>
+        <div class="panel-head">
+            <h2 id="barcode-scanner-title">Scan a product barcode</h2>
+            <button type="button" class="btn btn-light btn-sm" data-close-barcode-scanner>Close</button>
+        </div>
+        <div class="panel-body">
+            <video muted playsinline aria-hidden="true" hidden></video>
+            <p class="text-secondary small" role="status" data-barcode-status></p>
+        </div>
+    </dialog>
+    <script src="assets/vendor/zxing-0.23.0.min.js" defer></script>
+<?php }
+
 function methodBadge(string $method): void
 { ?>
     <span class="method method-<?= e($method) ?>"><?= e(methodName($method)) ?></span>

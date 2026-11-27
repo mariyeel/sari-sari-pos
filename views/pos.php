@@ -9,8 +9,12 @@ $customers = $db->query("SELECT id, name, phone FROM customers ORDER BY name, id
     <section class="panel catalog">
         <div class="panel-head"><div><h2>Products</h2><p>Prices and stock are shown per selling unit.</p></div></div>
         <div class="panel-body catalog-body">
-            <label class="search-field"><?= icon('search') ?><input type="search" class="form-control" placeholder="Search product or SKU" aria-label="Search product or SKU" data-catalog-search></label>
+            <div class="product-search-tools">
+                <label class="search-field"><?= icon('search') ?><input type="search" class="form-control" placeholder="Search product or SKU" aria-label="Search product or SKU" data-catalog-search></label>
+                <?php if ($products) { ?><button type="button" class="btn btn-light" aria-haspopup="dialog" aria-controls="barcode-scanner" data-open-barcode-scanner="cart" hidden>Scan barcode</button><?php } ?>
+            </div>
             <?php if ($products) { ?>
+                <p class="text-secondary small" role="status" data-cart-scan-status></p>
                 <div class="catalog-filters" aria-label="Product categories"><button class="filter-pill active" type="button" data-category="" aria-pressed="true">All products</button>
                 <?php foreach ($categories as $id => $category) { ?><button class="filter-pill" type="button" data-category="<?= e($id) ?>" aria-pressed="false"><?= e($category) ?></button><?php } ?>
                 </div>
@@ -63,3 +67,4 @@ $customers = $db->query("SELECT id, name, phone FROM customers ORDER BY name, id
         </div>
     </section>
 </div>
+<?php if ($products) { barcodeScanner(); } ?>

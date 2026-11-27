@@ -46,10 +46,9 @@ document.querySelectorAll('form[data-confirm]').forEach(form => {
     });
 });
 
-function setupBarcodeScanner(productList, onScan) {
-    const open = productList.querySelector('[data-open-barcode-scanner]');
-    const dialog = productList.querySelector('[data-barcode-scanner]');
-    if (!open || typeof dialog?.showModal !== 'function') return;
+function setupBarcodeScanner(actions) {
+    const dialog = document.querySelector('[data-barcode-scanner]');
+    if (typeof dialog?.showModal !== 'function') return;
 
     const video = dialog.querySelector('video');
     const status = dialog.querySelector('[data-barcode-status]');
@@ -68,18 +67,18 @@ function setupBarcodeScanner(productList, onScan) {
         dialog.close();
     }
 
-    open.hidden = false;
-    open.addEventListener('click', async () => {
+    async function openScanner(event) {
         if (dialog.open) return;
+        const onScan = actions.get(event.currentTarget.dataset.openBarcodeScanner);
         dialog.showModal();
         if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-            status.textContent = 'Camera access requires HTTPS and a compatible browser. You can still search by SKU.';
+            status.textContent = 'Camera access requires HTTPS and a compatible browser. You can still enter the SKU manually.';
             return;
         }
 
         const zxing = window.ZXing;
         if (!zxing) {
-            status.textContent = 'The barcode scanner could not load. Reload the page or search by SKU.';
+            status.textContent = 'The barcode scanner could not load. Reload the page or enter the SKU manually.';
             return;
         }
 
@@ -103,7 +102,7 @@ function setupBarcodeScanner(productList, onScan) {
                     if (!(error instanceof zxing.NotFoundException || error instanceof zxing.ChecksumException
                         || error instanceof zxing.FormatException)) {
                         stopCamera();
-                        status.textContent = 'The barcode scanner stopped. Try again or search by SKU.';
+                        status.textContent = 'The barcode scanner stopped. Try again or enter the SKU manually.';
                         return;
                     }
                 }
@@ -129,7 +128,7 @@ function setupBarcodeScanner(productList, onScan) {
             stream.getVideoTracks()[0]?.addEventListener('ended', () => {
                 if (session !== scan) return;
                 stopCamera();
-                status.textContent = 'The camera disconnected. Reopen the scanner or search by SKU.';
+                status.textContent = 'The camera disconnected. Reopen the scanner or enter the SKU manually.';
             });
             await video.play();
             if (session !== scan) return;
@@ -139,11 +138,16 @@ function setupBarcodeScanner(productList, onScan) {
             if (session !== scan) return;
             stopCamera();
             status.textContent = error.name === 'NotAllowedError'
-                ? 'Allow camera access in your browser or search by SKU.'
-                : 'Could not open the camera. Check that a camera is available or search by SKU.';
+                ? 'Allow camera access in your browser or enter the SKU manually.'
+                : 'Could not open the camera. Check that a camera is available or enter the SKU manually.';
         }
-    });
+    }
 
+    for (const button of document.querySelectorAll('[data-open-barcode-scanner]')) {
+        if (!actions.has(button.dataset.openBarcodeScanner)) continue;
+        button.hidden = false;
+        button.addEventListener('click', openScanner);
+    }
     dialog.querySelector('[data-close-barcode-scanner]').addEventListener('click', closeScanner);
     dialog.addEventListener('cancel', event => {
         event.preventDefault();
@@ -154,6 +158,7 @@ function setupBarcodeScanner(productList, onScan) {
     });
 }
 
+const barcodeActions = new Map();
 const productList = document.querySelector('[data-product-list]');
 const productSearch = productList?.querySelector('[data-product-search]');
 if (productSearch) {
@@ -179,11 +184,26 @@ if (productSearch) {
 
     productSearch.addEventListener('input', () => filterProducts());
     filterProducts();
-    setupBarcodeScanner(productList, barcode => {
+    barcodeActions.set('search', barcode => {
         productSearch.value = barcode;
         const match = filterProducts(true);
         match?.querySelector('a')?.focus();
     });
+}
+
+const skuScanStatus = document.querySelector('[data-sku-scan-status]');
+if (skuScanStatus) {
+    const sku = skuScanStatus.closest('form').elements.sku;
+    barcodeActions.set('sku', barcode => {
+        const value = barcode.trim();
+        if (!value || value.length > sku.maxLength || /[\r\n]/.test(value)) {
+            skuScanStatus.textContent = 'This barcode cannot be used as an SKU. Enter the SKU manually.';
+            return;
+        }
+        sku.value = value;
+        skuScanStatus.textContent = 'Barcode copied to SKU.';
+    });
+    sku.addEventListener('input', () => { skuScanStatus.textContent = ''; });
 }
 
 const stockForm = document.querySelector('[data-stock-form]');
@@ -237,6 +257,7 @@ if (pos) {
     const form = pos.querySelector('[data-checkout]');
     const items = pos.querySelector('[data-cart-items]');
     const status = pos.querySelector('[data-cart-status]');
+    const cartScanStatus = pos.querySelector('[data-cart-scan-status]');
     const submit = pos.querySelector('[data-complete]');
     const clear = pos.querySelector('[data-clear-cart]');
     const exact = pos.querySelector('[data-exact]');
@@ -249,6 +270,7 @@ if (pos) {
     let total = 0;
 
     function announce(message = '') {
+        if (cartScanStatus) cartScanStatus.textContent = '';
         status.textContent = message;
         status.hidden = !message;
     }
@@ -360,22 +382,39 @@ if (pos) {
         updatePayment();
     }
 
-    function changeQuantity(id, change) {
+    function changeQuantity(id, change, reportError = announce) {
+        const product = products.get(id);
         const current = cart.get(id) || 0;
         const next = current + change;
-        const limit = Math.min(products.get(id).stock, 10000);
+        const limit = Math.min(product.stock, 10000);
         if (next > limit) {
-            announce('Only ' + limit + ' available for this sale.');
-            return;
+            reportError(limit ? 'Only ' + limit + ' available for this sale.' : product.name + ' is out of stock.');
+            return false;
         }
         if (!current && cart.size >= 100) {
-            announce('A sale can include up to 100 different products.');
-            return;
+            reportError('A sale can include up to 100 different products.');
+            return false;
         }
         if (next <= 0) cart.delete(id);
         else cart.set(id, next);
         announce();
         renderCart();
+        return true;
+    }
+
+    if (cartScanStatus) {
+        const reportScan = message => { cartScanStatus.textContent = message; };
+        barcodeActions.set('cart', barcode => {
+            const sku = barcode.trim().toLocaleLowerCase();
+            const match = buttons.find(button => button.dataset.sku.toLocaleLowerCase() === sku);
+            if (!match) {
+                reportScan('No product available for sale matches this barcode.');
+                return;
+            }
+            if (changeQuantity(match.dataset.add, 1, reportScan)) {
+                reportScan(match.dataset.name + ' added to the cart.');
+            }
+        });
     }
 
     buttons.forEach(button => button.addEventListener('click', () => changeQuantity(button.dataset.add, 1)));
@@ -422,3 +461,5 @@ if (pos) {
     });
     renderCart();
 }
+
+setupBarcodeScanner(barcodeActions);
