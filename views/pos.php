@@ -4,10 +4,10 @@ $products = $db->query("SELECT p.id, p.sku, p.name, p.unit, p.price_cents, p.sto
 $categories = array_column($products, 'category', 'category_id');
 $customers = $db->query("SELECT id, name, phone FROM customers ORDER BY name, id")->fetchAll();
 ?>
-<section class="page-heading"><div><p class="eyebrow">CHECKOUT</p><h1>Point of sale</h1><p>Add products and choose how the customer will pay.</p></div><div class="heading-actions"><a class="btn btn-light" href="?page=transactions"><?= icon('clock-history') ?> Transactions</a><a class="btn btn-primary mobile-cart-link" href="#current-sale"><?= icon('cart3') ?> View cart <span data-cart-jump-count>0</span></a></div></section>
+<section class="page-heading"><div><p class="eyebrow">CHECKOUT</p><h1>Point of sale</h1></div><div class="heading-actions"><a class="btn btn-light" href="?page=transactions"><?= icon('clock-history') ?> Transactions</a><a class="btn btn-primary mobile-cart-link" href="#current-sale"><?= icon('cart3') ?> View cart <span data-cart-jump-count>0</span></a></div></section>
 <div class="pos-grid" data-pos data-user="<?= e($user['id']) ?>">
     <section class="panel catalog">
-        <div class="panel-head"><div><h2>Products</h2><p>Prices and stock are shown per selling unit.</p></div></div>
+        <div class="panel-head"><h2 id="pos-products-heading">Products</h2></div>
         <div class="panel-body catalog-body">
             <div class="product-search-tools">
                 <label class="search-field"><?= icon('search') ?><input type="search" class="form-control" placeholder="Search product or SKU" aria-label="Search product or SKU" data-catalog-search></label>
@@ -18,17 +18,19 @@ $customers = $db->query("SELECT id, name, phone FROM customers ORDER BY name, id
                 <div class="catalog-filters" aria-label="Product categories"><button class="filter-pill active" type="button" data-category="" aria-pressed="true">All products</button>
                 <?php foreach ($categories as $id => $category) { ?><button class="filter-pill" type="button" data-category="<?= e($id) ?>" aria-pressed="false"><?= e($category) ?></button><?php } ?>
                 </div>
-                <div class="product-grid">
-                <?php foreach ($products as $product) { ?>
-                    <button class="product-tile" type="button" data-add="<?= e($product['id']) ?>" data-group="<?= e($product['category_id']) ?>"
-                        data-name="<?= e($product['name']) ?>" data-sku="<?= e($product['sku']) ?>" data-unit="<?= e($product['unit']) ?>"
-                        data-price="<?= e($product['price_cents']) ?>" data-stock="<?= e($product['stock']) ?>" <?= $product['stock'] ? '' : 'disabled' ?>>
-                        <span class="product-top"><span class="product-icon"><?= icon('box-seam') ?></span><span class="stock-pill <?= $product['stock'] ? ($product['stock'] <= $product['low_stock'] ? '' : 'in-stock') : 'out' ?>"><?= $product['stock'] ? e($product['stock']) . ' left' : 'Out of stock' ?></span></span>
-                        <span class="product-name"><?= e($product['name']) ?></span><small><?= e($product['unit']) ?> · <?= e($product['sku']) ?></small><strong><?= e(money($product['price_cents'])) ?></strong>
-                    </button>
-                <?php } ?>
+                <div class="catalog-product-scroll" role="region" aria-labelledby="pos-products-heading" tabindex="0">
+                    <div class="product-grid">
+                    <?php foreach ($products as $product) { ?>
+                        <button class="product-tile" type="button" data-add="<?= e($product['id']) ?>" data-group="<?= e($product['category_id']) ?>"
+                            data-name="<?= e($product['name']) ?>" data-sku="<?= e($product['sku']) ?>" data-unit="<?= e($product['unit']) ?>"
+                            data-price="<?= e($product['price_cents']) ?>" data-stock="<?= e($product['stock']) ?>" <?= $product['stock'] ? '' : 'disabled' ?>>
+                            <span class="product-top"><span class="product-icon"><?= icon('box-seam') ?></span><span class="stock-pill <?= $product['stock'] ? ($product['stock'] <= $product['low_stock'] ? '' : 'in-stock') : 'out' ?>"><?= $product['stock'] ? e($product['stock']) . ' left' : 'Out of stock' ?></span></span>
+                            <span class="product-name"><?= e($product['name']) ?></span><small><?= e($product['unit']) ?> · <?= e($product['sku']) ?></small><strong><?= e(money($product['price_cents'])) ?></strong>
+                        </button>
+                    <?php } ?>
+                    </div>
+                    <div data-catalog-empty hidden><?php emptyState('No matching products', 'Try a different search or category.', 'search'); ?></div>
                 </div>
-                <div data-catalog-empty hidden><?php emptyState('No matching products', 'Try a different search or category.', 'search'); ?></div>
             <?php } else {
                 emptyState('No products available', $owner ? 'Add a category and product to start selling.' : 'Ask the store owner to add products.', 'box-seam');
                 if ($owner) { ?><div class="text-center pb-3"><a class="btn btn-light" href="?page=products">Manage products</a></div><?php }
