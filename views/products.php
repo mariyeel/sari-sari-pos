@@ -9,9 +9,20 @@ $category = !empty($_GET['category']) ? query($db, "SELECT * FROM categories WHE
     <section class="panel table-panel" data-product-list>
         <div class="panel-head"><div><h2>Products</h2><p><?= e(count($products)) ?> in the catalog</p></div><?php if ($product) { ?><a class="btn btn-light btn-sm" href="?page=products#product-form">Add product</a><?php } ?></div>
         <?php if ($products) { ?>
-        <div class="panel-body">
+        <div class="panel-body product-search-tools">
             <label class="search-field"><?= icon('search') ?><input type="search" class="form-control" placeholder="Search product or SKU" aria-label="Search product or SKU" data-product-search></label>
+            <button type="button" class="btn btn-light" aria-haspopup="dialog" aria-controls="barcode-scanner" data-open-barcode-scanner hidden>Scan barcode</button>
         </div>
+        <dialog class="panel barcode-scanner" id="barcode-scanner" aria-labelledby="barcode-scanner-title" data-barcode-scanner>
+            <div class="panel-head">
+                <h2 id="barcode-scanner-title">Scan a product barcode</h2>
+                <button type="button" class="btn btn-light btn-sm" data-close-barcode-scanner>Close</button>
+            </div>
+            <div class="panel-body">
+                <video muted playsinline aria-hidden="true" hidden></video>
+                <p class="text-secondary small" role="status" data-barcode-status></p>
+            </div>
+        </dialog>
         <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Product</th><th>Category</th><th>Selling price</th><th>Unit cost</th><th>Status</th><th><span class="visually-hidden">Edit</span></th></tr></thead><tbody>
         <?php foreach ($products as $item) { ?><tr data-product-name="<?= e($item['name']) ?>" data-product-sku="<?= e($item['sku']) ?>"><td class="fw-semibold"><?= e($item['name']) ?><small class="d-block text-secondary"><?= e($item['sku']) ?> · <?= e($item['unit']) ?></small></td><td><?= e($item['category']) ?></td><td><?= e(money($item['price_cents'])) ?></td><td><?= e(money($item['cost_cents'])) ?></td><td><span class="method <?= $item['active'] ? 'method-cash' : 'method-utang' ?>"><?= $item['active'] ? 'Active' : 'Archived' ?></span></td><td class="text-end"><a class="btn btn-light btn-sm" href="?page=products&amp;edit=<?= e($item['id']) ?>#product-form">Edit</a></td></tr><?php } ?>
         <tr hidden data-product-search-empty><td colspan="6" class="text-center text-secondary">No products match your search.</td></tr>
@@ -62,3 +73,4 @@ $category = !empty($_GET['category']) ? query($db, "SELECT * FROM categories WHE
         </form>
     </section>
 </div>
+<?php if ($products) { ?><script src="assets/vendor/zxing-0.23.0.min.js" defer></script><?php } ?>

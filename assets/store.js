@@ -46,26 +46,144 @@ document.querySelectorAll('form[data-confirm]').forEach(form => {
     });
 });
 
+function setupBarcodeScanner(productList, onScan) {
+    const open = productList.querySelector('[data-open-barcode-scanner]');
+    const dialog = productList.querySelector('[data-barcode-scanner]');
+    if (!open || typeof dialog?.showModal !== 'function') return;
+
+    const video = dialog.querySelector('video');
+    const status = dialog.querySelector('[data-barcode-status]');
+    let session;
+
+    function stopCamera() {
+        clearTimeout(session?.timer);
+        session = undefined;
+        video.srcObject?.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+        video.hidden = true;
+    }
+
+    function closeScanner() {
+        stopCamera();
+        dialog.close();
+    }
+
+    open.hidden = false;
+    open.addEventListener('click', async () => {
+        if (dialog.open) return;
+        dialog.showModal();
+        if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+            status.textContent = 'Camera access requires HTTPS and a compatible browser. You can still search by SKU.';
+            return;
+        }
+
+        const zxing = window.ZXing;
+        if (!zxing) {
+            status.textContent = 'The barcode scanner could not load. Reload the page or search by SKU.';
+            return;
+        }
+
+        const { BarcodeFormat, DecodeHintType } = zxing;
+        const hints = new Map([[DecodeHintType.POSSIBLE_FORMATS, [
+            BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E,
+            BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.ITF
+        ]]]);
+        const reader = new zxing.BrowserMultiFormatReader(hints);
+        const scan = {};
+        session = scan;
+        status.textContent = 'Waiting for camera access…';
+
+        const readFrame = () => {
+            if (session !== scan) return;
+            let result;
+            if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                try {
+                    result = reader.decode(video);
+                } catch (error) {
+                    if (!(error instanceof zxing.NotFoundException || error instanceof zxing.ChecksumException
+                        || error instanceof zxing.FormatException)) {
+                        stopCamera();
+                        status.textContent = 'The barcode scanner stopped. Try again or search by SKU.';
+                        return;
+                    }
+                }
+            }
+            if (result) {
+                closeScanner();
+                onScan(result.getText());
+                return;
+            }
+            scan.timer = setTimeout(readFrame, 200);
+        };
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false
+            });
+            if (session !== scan) {
+                stream.getTracks().forEach(track => track.stop());
+                return;
+            }
+            video.srcObject = stream;
+            video.hidden = false;
+            stream.getVideoTracks()[0]?.addEventListener('ended', () => {
+                if (session !== scan) return;
+                stopCamera();
+                status.textContent = 'The camera disconnected. Reopen the scanner or search by SKU.';
+            });
+            await video.play();
+            if (session !== scan) return;
+            status.textContent = 'Hold the barcode steady in view.';
+            readFrame();
+        } catch (error) {
+            if (session !== scan) return;
+            stopCamera();
+            status.textContent = error.name === 'NotAllowedError'
+                ? 'Allow camera access in your browser or search by SKU.'
+                : 'Could not open the camera. Check that a camera is available or search by SKU.';
+        }
+    });
+
+    dialog.querySelector('[data-close-barcode-scanner]').addEventListener('click', closeScanner);
+    dialog.addEventListener('cancel', event => {
+        event.preventDefault();
+        closeScanner();
+    });
+    window.addEventListener('pagehide', () => {
+        if (dialog.open) closeScanner();
+    });
+}
+
 const productList = document.querySelector('[data-product-list]');
 const productSearch = productList?.querySelector('[data-product-search]');
 if (productSearch) {
     const rows = productList.querySelectorAll('[data-product-name]');
     const noMatches = productList.querySelector('[data-product-search-empty]');
 
-    const filterProducts = () => {
+    const filterProducts = (exactSku = false) => {
         const term = productSearch.value.trim().toLocaleLowerCase();
-        let hasMatch = false;
+        let firstMatch;
         for (const row of rows) {
             const { productName, productSku } = row.dataset;
-            const matches = [productName, productSku].some(value => value.toLocaleLowerCase().includes(term));
+            const sku = productSku.toLocaleLowerCase();
+            const matches = exactSku ? sku === term : sku.includes(term) || productName.toLocaleLowerCase().includes(term);
             row.hidden = !matches;
-            hasMatch ||= matches;
+            if (matches) firstMatch ??= row;
         }
-        noMatches.hidden = hasMatch;
+        noMatches.cells[0].textContent = exactSku
+            ? 'No product uses this barcode as its SKU.'
+            : 'No products match your search.';
+        noMatches.hidden = Boolean(firstMatch);
+        return firstMatch;
     };
 
-    productSearch.addEventListener('input', filterProducts);
+    productSearch.addEventListener('input', () => filterProducts());
     filterProducts();
+    setupBarcodeScanner(productList, barcode => {
+        productSearch.value = barcode;
+        const match = filterProducts(true);
+        match?.querySelector('a')?.focus();
+    });
 }
 
 const stockForm = document.querySelector('[data-stock-form]');
