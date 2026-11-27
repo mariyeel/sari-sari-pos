@@ -8,6 +8,7 @@ $nav = [
 $titles = array_merge(...array_values($nav));
 $title = $titles[$page][0] ?? ['receipt' => 'Sale receipt', 'missing' => 'Receipt unavailable', 'forbidden' => 'Owner access required'][$page] ?? 'SariSari';
 $initials = mb_strtoupper(mb_substr($user['name'], 0, 1));
+$storeScriptVersion = substr(hash_file('sha256', __DIR__ . '/../assets/store.js'), 0, 12);
 ?>
 <!doctype html>
 <html lang="en">
@@ -18,7 +19,7 @@ $initials = mb_strtoupper(mb_substr($user['name'], 0, 1));
     <link rel="stylesheet" href="assets/bootstrap.min.css">
     <link rel="stylesheet" href="assets/icons.css">
     <link rel="stylesheet" href="assets/store.css">
-    <script src="assets/store.js" defer></script>
+    <script src="assets/store.js?v=<?= e($storeScriptVersion) ?>" defer></script>
 </head>
 <body>
 <div class="workspace">
