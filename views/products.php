@@ -28,10 +28,8 @@ $category = !empty($_GET['category']) ? query($db, "SELECT * FROM categories WHE
             <div class="field-pair">
                 <div>
                     <label class="form-label">SKU<input name="sku" class="form-control" maxlength="40" value="<?= e($product['sku'] ?? '') ?>" required></label>
-                    <?php if (!$product) { ?>
-                        <button type="button" class="btn btn-light btn-sm mt-2" aria-haspopup="dialog" aria-controls="barcode-scanner" data-open-barcode-scanner="sku" hidden>Scan SKU</button>
-                        <p class="text-secondary small" role="status" data-sku-scan-status></p>
-                    <?php } ?>
+                    <button type="button" class="btn btn-light btn-sm mt-2" aria-haspopup="dialog" aria-controls="barcode-scanner" data-open-barcode-scanner="sku" hidden>Scan SKU</button>
+                    <p class="text-secondary small" role="status" data-sku-scan-status></p>
                 </div>
                 <label class="form-label">Selling unit<input name="unit" class="form-control" maxlength="30" value="<?= e($product['unit'] ?? 'piece') ?>" placeholder="piece, sachet, pack" required></label>
             </div>
@@ -69,4 +67,4 @@ $category = !empty($_GET['category']) ? query($db, "SELECT * FROM categories WHE
         </form>
     </section>
 </div>
-<?php if ($products || ($categories && !$product)) { barcodeScanner(); } ?>
+<?php if ($products || $categories) { barcodeScanner(); } ?>
